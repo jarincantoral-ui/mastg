@@ -1,4 +1,4 @@
-<img width="180px" align="right" style="float: right;" src="cover.png">
+<img width="9000px" align="right" style="float: right;" src="cover.png">
 
 # OWASP Mobile Application Security Testing Guide (MASTG)
 
