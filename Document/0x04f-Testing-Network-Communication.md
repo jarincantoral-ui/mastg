@@ -1,3 +1,8 @@
+---
+masvs_category: MASVS-NETWORK
+platform: all
+---
+
 # Mobile App Network Communication
 
 Practically every network-connected mobile app uses the Hypertext Transfer Protocol (HTTP) or HTTP over Transport Layer Security (TLS), HTTPS, to send and receive data to and from remote endpoints. Consequently, network-based attacks (such as packet sniffing and man-in-the-middle-attacks) are a problem. In this chapter we discuss potential vulnerabilities, testing techniques, and best practices concerning the network communication between mobile apps and their endpoints.
@@ -93,16 +98,123 @@ Pinning is a recommended practice, especially for MASVS-L2 apps. However, develo
 - ["Android Security: SSL Pinning"](https://appmattus.medium.com/android-security-ssl-pinning-1db8acb6621e)
 - [OWASP Certificate Pinning Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Pinning_Cheat_Sheet.html)
 
+## Verifying the TLS Settings
+
+One of the core mobile app functions is sending/receiving data over untrusted networks like the Internet. If the data is not properly protected in transit, an attacker with access to any part of the network infrastructure (e.g., a Wi-Fi access point) may intercept, read, or modify it. This is why plaintext network protocols are rarely advisable.
+
+The vast majority of apps rely on HTTP for communication with the backend. HTTPS wraps HTTP in an encrypted connection (the acronym HTTPS originally referred to HTTP over Secure Socket Layer (SSL); SSL is the deprecated predecessor of TLS). TLS allows authentication of the backend service and ensures confidentiality and integrity of the network data.
+
+### Recommended TLS Settings
+
+Ensuring proper TLS configuration on the server side is also important. The SSL protocol is deprecated and should no longer be used.
+Also TLS v1.0 and TLS v1.1 have [known vulnerabilities](https://portswigger.net/daily-swig/the-end-is-nigh-browser-makers-ditch-support-for-aging-tls-1-0-1-1-protocols "Browser-makers ditch support for aging TLS 1.0, 1.1 protocols") and their usage is deprecated in all major browsers by 2020.
+TLS v1.2 and TLS v1.3 are considered best practice for secure transmission of data. Starting with Android 10 (API level 29) TLS v1.3 will be enabled by default for faster and secure communication. The [major change with TLS v1.3](https://developer.android.com/about/versions/10/behavior-changes-all#tls-1.3 "TLS 1.3 enabled by default") is that customizing cipher suites is no longer possible and that all of them are enabled when TLS v1.3 is enabled, whereas Zero Round Trip (0-RTT) mode isn't supported.
+
+When both the client and server are controlled by the same organization and used only for communicating with one another, you can increase security by [hardening the configuration](https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices "Qualys SSL/TLS Deployment Best Practices").
+
+If a mobile application connects to a specific server, its networking stack can be tuned to ensure the highest possible security level for the server's configuration. Lack of support in the underlying operating system may force the mobile application to use a weaker configuration.
+
+### Cipher Suites Terminology
+
+Cipher suites have the following structure:
+
+```txt
+Protocol_KeyExchangeAlgorithm_WITH_BlockCipher_IntegrityCheckAlgorithm
+```
+
+This structure includes:
+
+- A **Protocol** used by the cipher
+- A **Key Exchange Algorithm** used by the server and the client to authenticate during the TLS handshake
+- A **Block Cipher** used to encrypt the message stream
+- A **Integrity Check Algorithm** used to authenticate messages
+
+Example: `TLS_RSA_WITH_3DES_EDE_CBC_SHA`
+
+In the example above the cipher suites uses:
+
+- TLS as protocol
+- RSA Asymmetric encryption for Authentication
+- 3DES for Symmetric encryption with EDE_CBC mode
+- SHA Hash algorithm for integrity
+
+Note that in TLSv1.3 the Key Exchange Algorithm is not part of the cipher suite, instead it is determined during the TLS handshake.
+
+In the following listing, we’ll present the different algorithms of each part of the cipher suite.
+
+**Protocols:**
+
+- `SSLv1`
+- `SSLv2` - [RFC 6176](https://tools.ietf.org/html/rfc6176 "RFC 6176")
+- `SSLv3` - [RFC 6101](https://tools.ietf.org/html/rfc6101 "RFC 6101")
+- `TLSv1.0` - [RFC 2246](https://tools.ietf.org/rfc/rfc2246 "RFC 2246")
+- `TLSv1.1` - [RFC 4346](https://tools.ietf.org/html/rfc4346 "RFC 4346")
+- `TLSv1.2` - [RFC 5246](https://tools.ietf.org/html/rfc5246 "RFC 5246")
+- `TLSv1.3` - [RFC 8446](https://tools.ietf.org/html/rfc8446 "RFC 8446")
+
+**Key Exchange Algorithms:**
+
+- `DSA` - [RFC 6979](https://tools.ietf.org/html/rfc6979 "RFC 6979")
+- `ECDSA` - [RFC 6979](https://tools.ietf.org/html/rfc6979 "RFC 6979")
+- `RSA` - [RFC 8017](https://tools.ietf.org/html/rfc8017 "RFC 8017")
+- `DHE` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
+- `ECDHE` - [RFC 4492](https://tools.ietf.org/html/rfc4492 "RFC 4492")
+- `PSK` - [RFC 4279](https://tools.ietf.org/html/rfc4279 "RFC 4279")
+- `DSS` - [FIPS186-4](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf "FIPS186-4")
+- `DH_anon` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
+- `DHE_RSA` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
+- `DHE_DSS` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
+- `ECDHE_ECDSA` - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")
+- `ECDHE_PSK`  - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")  - [RFC 5489](https://tools.ietf.org/html/rfc5489 "RFC 5489")
+- `ECDHE_RSA`  - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")
+
+**Block Ciphers:**
+
+- `DES`  - [RFC 4772](https://tools.ietf.org/html/rfc4772 "RFC 4772")
+- `DES_CBC`  - [RFC 1829](https://tools.ietf.org/html/rfc1829 "RFC 1829")
+- `3DES`  - [RFC 2420](https://tools.ietf.org/html/rfc2420 "RFC 2420")
+- `3DES_EDE_CBC` - [RFC 2420](https://tools.ietf.org/html/rfc2420 "RFC 2420")
+- `AES_128_CBC` - [RFC 3268](https://tools.ietf.org/html/rfc3268 "RFC 3268")
+- `AES_128_GCM`  - [RFC 5288](https://tools.ietf.org/html/rfc5288 "RFC 5288")
+- `AES_256_CBC` - [RFC 3268](https://tools.ietf.org/html/rfc3268 "RFC 3268")
+- `AES_256_GCM` - [RFC 5288](https://tools.ietf.org/html/rfc5288 "RFC 5288")
+- `RC4_40`  - [RFC 7465](https://tools.ietf.org/html/rfc7465 "RFC 7465")
+- `RC4_128`  - [RFC 7465](https://tools.ietf.org/html/rfc7465 "RFC 7465")
+- `CHACHA20_POLY1305`  - [RFC 7905](https://tools.ietf.org/html/rfc7905 "RFC 7905")  - [RFC 7539](https://tools.ietf.org/html/rfc7539 "RFC 7539")
+
+**Integrity Check Algorithms:**
+
+- `MD5`  - [RFC 6151](https://tools.ietf.org/html/rfc6151 "RFC 6151")
+- `SHA`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
+- `SHA256`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
+- `SHA384`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
+
+Note that the efficiency of a cipher suite depends on the efficiency of its algorithms.
+
+The following resources contain the latest recommended cipher suites to use with TLS:
+
+- IANA recommended cipher suites can be found in [TLS Cipher Suites](https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4 "TLS Cipher Suites").
+- OWASP recommended cipher suites can be found in the [TLS Cipher String Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/TLS_Cipher_String_Cheat_Sheet.md "OWASP TLS Cipher String Cheat Sheet").
+
+Some Android and iOS versions do not support some of the recommended cipher suites, so for compatibility purposes you can check the supported cipher suites for [Android](https://developer.android.com/reference/javax/net/ssl/SSLSocket#cipher-suites "Cipher suites") and [iOS](https://developer.apple.com/documentation/security/1550981-ssl_cipher_suite_values?language=objc "SSL Cipher Suite Values") versions and choose the top supported cipher suites.
+
+If you want to verify whether your server supports the right cipher suites, there are various tools you can use:
+
+- nscurl - see [iOS Network Communication](0x06g-Testing-Network-Communication.md) for more details.
+- [testssl.sh](https://github.com/drwetter/testssl.sh "testssl.sh") which "is a free command line tool which checks a server's service on any port for the support of TLS/SSL ciphers, protocols as well as some cryptographic flaws".
+
+Finally, verify that the server or termination proxy at which the HTTPS connection terminates is configured according to best practices. See also the [OWASP Transport Layer Protection cheat sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.md "Transport Layer Protection Cheat Sheet") and the [Qualys SSL/TLS Deployment Best Practices](https://github.com/ssllabs/research/wiki/SSL-and-TLS-Deployment-Best-Practices "Qualys SSL/TLS Deployment Best Practices").
+
 ## Intercepting HTTP(S) Traffic
 
 In many cases, it is most practical to configure a system proxy on the mobile device, so that HTTP(S) traffic is redirected through an _interception proxy_ running on your host computer. By monitoring the requests between the mobile app client and the backend, you can easily map the available server-side APIs and gain insight into the communication protocol. Additionally, you can replay and manipulate requests to test for server-side vulnerabilities.
 
 Several free and commercial proxy tools are available. Here are some of the most popular:
 
-- [Burp Suite](0x08a-Testing-Tools.md#burp-suite)
-- [OWASP ZAP](0x08a-Testing-Tools.md#owasp-zap)
+- @MASTG-TOOL-0077
+- @MASTG-TOOL-0079
 
-To use the interception proxy, you'll need run it on your host computer and configure the mobile app to route HTTP(S) requests to your proxy. In most cases, it is enough to set a system-wide proxy in the network settings of the mobile device - if the app uses standard HTTP APIs or popular libraries such as `okhttp`, it will automatically use the system settings.
+To use the interception proxy, you'll need to run it on your host computer and configure the mobile app to route HTTP(S) requests to your proxy. In most cases, it is enough to set a system-wide proxy in the network settings of the mobile device - if the app uses standard HTTP APIs or popular libraries such as `okhttp`, it will automatically use the system settings.
 
 <img src="Images/Chapters/0x04f/BURP.png" width="100%" />
 
@@ -110,7 +222,7 @@ Using a proxy breaks SSL certificate verification and the app will usually fail 
 
 ## Intercepting Non-HTTP Traffic
 
-Interception proxies such as [Burp](0x08a-Testing-Tools.md#burp-suite) and [OWASP ZAP](0x08a-Testing-Tools.md#owasp-zap) won't show non-HTTP traffic, because they aren't capable of decoding it properly by default. There are, however, Burp plugins available such as:
+Interception proxies such as @MASTG-TOOL-0077 and @MASTG-TOOL-0079 won't show non-HTTP traffic, because they aren't capable of decoding it properly by default. There are, however, Burp plugins available such as:
 
 - [Burp-non-HTTP-Extension](https://github.com/summitt/Burp-Non-HTTP-Extension "Burp-non-HTTP-Extension") and
 - [Mitm-relay](https://github.com/jrmdev/mitm_relay "Mitm-relay").
@@ -127,7 +239,7 @@ You don't need to deploy a fully fledged MITM attack if you simply want to know 
 
 This would work pretty well for apps using standard API libraries functions and classes, however there might be some downsides:
 
-- the app might implement a custom network stack and you'll have to spend time analyzing the app to find out the APIs that you can use (see section "Searching for OpenSSL traces with signature analysis" in [this blog post](https://hackmag.com/security/ssl-sniffing/)).
+- the app might implement a custom network stack and you'll have to spend time analyzing the app to find out the APIs that you can use. See section "Searching for OpenSSL traces with signature analysis" in [this blog post](https://hackmag.com/security/ssl-sniffing/ "Searching for OpenSSL traces with signature analysis").
 - it might be very time consuming to craft the right hooking scripts to re-assemble HTTP response pairs (across many method calls and execution threads). You might find [ready-made scripts](https://github.com/fanxs-t/Android-SSL_read-write-Hook/blob/master/frida-hook.py) and even for [alternative network stacks](https://codeshare.frida.re/@owen800q/okhttp3-interceptor/) but depending on the app and the platform these scripts might need a lot of maintenance and might not _always work_.
 
 See some examples:
@@ -148,8 +260,8 @@ Dynamic analysis by using an interception proxy can be straight forward if stand
 
 In these cases you need to monitor and analyze the network traffic first in order to decide what to do next. Luckily, there are several options for redirecting and intercepting network communication:
 
-- Route the traffic through the host computer. You can set up host computer as the network gateway, e.g. by using the built-in Internet Sharing facilities of your operating system. You can then use [Wireshark](0x08a-Testing-Tools.md#wireshark) to sniff any traffic from the mobile device.
-- Sometimes you need to execute a MITM attack to force the mobile device to talk to you. For this scenario you should consider [bettercap](0x08a-Testing-Tools.md#bettercap) or use your own access point to redirect network traffic from the mobile device to your host computer (see below).
+- Route the traffic through the host computer. You can set up host computer as the network gateway, e.g. by using the built-in Internet Sharing facilities of your operating system. You can then use @MASTG-TOOL-0081 to sniff any traffic from the mobile device.
+- Sometimes you need to execute a MITM attack to force the mobile device to talk to you. For this scenario you should consider @MASTG-TOOL-0076 or use your own access point to redirect network traffic from the mobile device to your host computer (see below).
 - On a rooted device, you can use hooking or code injection to intercept network-related API calls (e.g. HTTP requests) and dump or even manipulate the arguments of these calls. This eliminates the need to inspect the actual network data. We'll talk in more detail about these techniques in the "Reverse Engineering and Tampering" chapters.
 - On macOS, you can create a "Remote Virtual Interface" for sniffing all traffic on an iOS device. We'll describe this method in the chapter "Basic Security Testing on iOS".
 
@@ -161,7 +273,7 @@ To be able to get a man-in-the-middle position your host computer should be in t
 
 #### MITM Attack
 
-Start your preferred network analyzer tool first, then start [bettercap](0x08a-Testing-Tools.md#bettercap) with the following command and replace the IP address below (X.X.X.X) with the target you want to execute the MITM attack against.
+Start your preferred network analyzer tool first, then start @MASTG-TOOL-0076 with the following command and replace the IP address below (X.X.X.X) with the target you want to execute the MITM attack against.
 
 ```bash
 $ sudo bettercap -eval "set arp.spoof.targets X.X.X.X; arp.spoof on; set arp.spoof.internal true; set arp.spoof.fullduplex true;"
@@ -354,21 +466,21 @@ When testing a Xamarin app and when you are trying to set the system proxy in th
     " | sudo pfctl -ef -
     ```
 
-- For Linux systems you can use `iptables`:
+    For Linux systems you can use `iptables`:
 
     ```bash
     sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j DNAT --to-destination 127.0.0.1:8080
     ```
 
-- As last step, you need to set the option 'Support invisible proxy' in the listener settings of [Burp Suite](0x08a-Testing-Tools.md#burp-suite).
+    As last step, you need to set the option 'Support invisible proxy' in the listener settings of @MASTG-TOOL-0007.
 
-- 3rd way: Instead of bettercap an alternative is tweaking the `/etc/hosts` on the mobile phone. Add an entry into `/etc/hosts` for the target domain and point it to the IP address of your intercepting proxy. This creates a similar situation of being MiTM as with bettercap and you need to redirect port 443 to the port which is used by your interception proxy. The redirection can be applied as mentioned above. Additionally, you need to redirect traffic from your interception proxy to the original location and port.
+- 3rd way: Instead of bettercap an alternative is tweaking the `/etc/hosts` on the mobile phone. Add an entry into `/etc/hosts` for the target domain and point it to the IP address of your intercepting proxy. This creates a similar situation of being MITM as with bettercap and you need to redirect port 443 to the port which is used by your interception proxy. The redirection can be applied as mentioned above. Additionally, you need to redirect traffic from your interception proxy to the original location and port.
 
 > When redirecting traffic you should create narrow rules to the domains and IPs in scope, to minimize noise and out-of-scope traffic.
 
 The interception proxy need to listen to the port specified in the port forwarding rule above, which is 8080.
 
-When a Xamarin app is configured to use a proxy (e.g. by using `WebRequest.DefaultWebProxy`) you need to specify where traffic should go next, after redirecting the traffic to your intercepting proxy. You need to redirect the traffic to the original location. The following procedure is setting up a redirection in [Burp](0x08a-Testing-Tools.md#burp-suite) to the original location:
+When a Xamarin app is configured to use a proxy (e.g. by using `WebRequest.DefaultWebProxy`) you need to specify where traffic should go next, after redirecting the traffic to your intercepting proxy. You need to redirect the traffic to the original location. The following procedure is setting up a redirection in @MASTG-TOOL-0077 to the original location:
 
 1. Go to **Proxy** tab and click on **Options**
 2. Select and edit your listener from the list of proxy listeners.
@@ -379,9 +491,6 @@ When a Xamarin app is configured to use a proxy (e.g. by using `WebRequest.Defau
     - Set 'Force use of SSL' (when HTTPS is used) and set 'Support invisible proxy'.
 
 <img src="Images/Chapters/0x04f/burp_xamarin.png" width="100%" />
-
-<br/>
-<br/>
 
 #### CA Certificates
 
@@ -396,215 +505,3 @@ If not already done, install the CA certificates in your mobile device which wil
 Start using the app and trigger its functions. You should see HTTP messages showing up in your interception proxy.
 
 > When using bettercap you need to activate "Support invisible proxying" in Proxy Tab / Options / Edit Interface
-
-## Verifying Data Encryption on the Network (MSTG-NETWORK-1)
-
-Refer to the corresponding chapters for more information:
-
-- [Android Network Communication](0x05g-Testing-Network-Communication.md#testing-data-encryption-on-the-network-mstg-network-1)
-- [iOS Network Communication](0x06g-Testing-Network-Communication.md#testing-data-encryption-on-the-network-mstg-network-1)
-
-## Verifying the TLS Settings (MSTG-NETWORK-2)
-
-One of the core mobile app functions is sending/receiving data over untrusted networks like the Internet. If the data is not properly protected in transit, an attacker with access to any part of the network infrastructure (e.g., a Wi-Fi access point) may intercept, read, or modify it. This is why plaintext network protocols are rarely advisable.
-
-The vast majority of apps rely on HTTP for communication with the backend. HTTPS wraps HTTP in an encrypted connection (the acronym HTTPS originally referred to HTTP over Secure Socket Layer (SSL); SSL is the deprecated predecessor of TLS). TLS allows authentication of the backend service and ensures confidentiality and integrity of the network data.
-
-### Recommended TLS Settings
-
-Ensuring proper TLS configuration on the server side is also important. The SSL protocol is deprecated and should no longer be used.
-Also TLS v1.0 and TLS v1.1 have [known vulnerabilities](https://portswigger.net/daily-swig/the-end-is-nigh-browser-makers-ditch-support-for-aging-tls-1-0-1-1-protocols "Browser-makers ditch support for aging TLS 1.0, 1.1 protocols") and their usage is deprecated in all major browsers by 2020.
-TLS v1.2 and TLS v1.3 are considered best practice for secure transmission of data. Starting with Android 10 (API level 29) TLS v1.3 will be enabled by default for faster and secure communication. The [major change with TLS v1.3](https://developer.android.com/about/versions/10/behavior-changes-all#tls-1.3 "TLS 1.3 enabled by default") is that customizing cipher suites is no longer possible and that all of them are enabled when TLS v1.3 is enabled, whereas Zero Round Trip (0-RTT) mode isn't supported.
-
-When both the client and server are controlled by the same organization and used only for communicating with one another, you can increase security by [hardening the configuration](https://dev.ssllabs.com/projects/best-practices/ "Qualys SSL/TLS Deployment Best Practices").
-
-If a mobile application connects to a specific server, its networking stack can be tuned to ensure the highest possible security level for the server's configuration. Lack of support in the underlying operating system may force the mobile application to use a weaker configuration.
-
-### Cipher Suites Terminology
-
-Cipher suites have the following structure:
-
-```txt
-Protocol_KeyExchangeAlgorithm_WITH_BlockCipher_IntegrityCheckAlgorithm
-```
-
-This structure includes:
-
-- A **Protocol** used by the cipher
-- A **Key Exchange Algorithm** used by the server and the client to authenticate during the TLS handshake
-- A **Block Cipher** used to encrypt the message stream
-- A **Integrity Check Algorithm** used to authenticate messages
-
-Example: `TLS_RSA_WITH_3DES_EDE_CBC_SHA`
-
-In the example above the cipher suites uses:
-
-- TLS as protocol
-- RSA Asymmetric encryption for Authentication
-- 3DES for Symmetric encryption with EDE_CBC mode
-- SHA Hash algorithm for integrity
-
-Note that in TLSv1.3 the Key Exchange Algorithm is not part of the cipher suite, instead it is determined during the TLS handshake.
-
-In the following listing, we’ll present the different algorithms of each part of the cipher suite.
-
-**Protocols:**
-
-- `SSLv1`
-- `SSLv2` - [RFC 6176](https://tools.ietf.org/html/rfc6176 "RFC 6176")
-- `SSLv3` - [RFC 6101](https://tools.ietf.org/html/rfc6101 "RFC 6101")
-- `TLSv1.0` - [RFC 2246](https://www.ietf.org/rfc/rfc2246 "RFC 2246")
-- `TLSv1.1` - [RFC 4346](https://tools.ietf.org/html/rfc4346 "RFC 4346")
-- `TLSv1.2` - [RFC 5246](https://tools.ietf.org/html/rfc5246 "RFC 5246")
-- `TLSv1.3` - [RFC 8446](https://tools.ietf.org/html/rfc8446 "RFC 8446")
-
-**Key Exchange Algorithms:**
-
-- `DSA` - [RFC 6979](https://tools.ietf.org/html/rfc6979 "RFC 6979")
-- `ECDSA` - [RFC 6979](https://tools.ietf.org/html/rfc6979 "RFC 6979")
-- `RSA` - [RFC 8017](https://tools.ietf.org/html/rfc8017 "RFC 8017")
-- `DHE` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
-- `ECDHE` - [RFC 4492](https://tools.ietf.org/html/rfc4492 "RFC 4492")
-- `PSK` - [RFC 4279](https://tools.ietf.org/html/rfc4279 "RFC 4279")
-- `DSS` - [FIPS186-4](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-4.pdf "FIPS186-4")
-- `DH_anon` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
-- `DHE_RSA` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
-- `DHE_DSS` - [RFC 2631](https://tools.ietf.org/html/rfc2631 "RFC 2631")  - [RFC 7919](https://tools.ietf.org/html/rfc7919 "RFC 7919")
-- `ECDHE_ECDSA` - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")
-- `ECDHE_PSK`  - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")  - [RFC 5489](https://tools.ietf.org/html/rfc5489 "RFC 5489")
-- `ECDHE_RSA`  - [RFC 8422](https://tools.ietf.org/html/rfc8422 "RFC 8422")
-
-**Block Ciphers:**
-
-- `DES`  - [RFC 4772](https://tools.ietf.org/html/rfc4772 "RFC 4772")
-- `DES_CBC`  - [RFC 1829](https://tools.ietf.org/html/rfc1829 "RFC 1829")
-- `3DES`  - [RFC 2420](https://tools.ietf.org/html/rfc2420 "RFC 2420")
-- `3DES_EDE_CBC` - [RFC 2420](https://tools.ietf.org/html/rfc2420 "RFC 2420")
-- `AES_128_CBC` - [RFC 3268](https://tools.ietf.org/html/rfc3268 "RFC 3268")
-- `AES_128_GCM`  - [RFC 5288](https://tools.ietf.org/html/rfc5288 "RFC 5288")
-- `AES_256_CBC` - [RFC 3268](https://tools.ietf.org/html/rfc3268 "RFC 3268")
-- `AES_256_GCM` - [RFC 5288](https://tools.ietf.org/html/rfc5288 "RFC 5288")
-- `RC4_40`  - [RFC 7465](https://tools.ietf.org/html/rfc7465 "RFC 7465")
-- `RC4_128`  - [RFC 7465](https://tools.ietf.org/html/rfc7465 "RFC 7465")
-- `CHACHA20_POLY1305`  - [RFC 7905](https://tools.ietf.org/html/rfc7905 "RFC 7905")  - [RFC 7539](https://tools.ietf.org/html/rfc7539 "RFC 7539")
-
-**Integrity Check Algorithms:**
-
-- `MD5`  - [RFC 6151](https://tools.ietf.org/html/rfc6151 "RFC 6151")
-- `SHA`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
-- `SHA256`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
-- `SHA384`  - [RFC 6234](https://tools.ietf.org/html/rfc6234 "RFC 6234")
-
-Note that the efficiency of a cipher suite depends on the efficiency of its algorithms.
-
-The following resources contain the latest recommended cipher suites to use with TLS:
-
-- IANA recommended cipher suites can be found in [TLS Cipher Suites](https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4 "TLS Cipher Suites").
-- OWASP recommended cipher suites can be found in the [TLS Cipher String Cheat Sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/TLS_Cipher_String_Cheat_Sheet.md "OWASP TLS Cipher String Cheat Sheet").
-
-Some Android and iOS versions do not support some of the recommended cipher suites, so for compatibility purposes you can check the supported cipher suites for [Android](https://developer.android.com/reference/javax/net/ssl/SSLSocket#cipher-suites "Cipher suites") and [iOS](https://developer.apple.com/documentation/security/1550981-ssl_cipher_suite_values?language=objc "SSL Cipher Suite Values") versions and choose the top supported cipher suites.
-
-If you want to verify whether your server supports the right cipher suites, there are various tools you can use:
-
-- nscurl - see [iOS Network Communication](0x06g-Testing-Network-Communication.md) for more details.
-- [testssl.sh](https://github.com/drwetter/testssl.sh "testssl.sh") which "is a free command line tool which checks a server's service on any port for the support of TLS/SSL ciphers, protocols as well as some cryptographic flaws".
-
-Finally, verify that the server or termination proxy at which the HTTPS connection terminates is configured according to best practices. See also the [OWASP Transport Layer Protection cheat sheet](https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/Transport_Layer_Protection_Cheat_Sheet.md "Transport Layer Protection Cheat Sheet") and the [Qualys SSL/TLS Deployment Best Practices](https://dev.ssllabs.com/projects/best-practices/ "Qualys SSL/TLS Deployment Best Practices").
-
-## Making Sure that Critical Operations Use Secure Communication Channels (MSTG-NETWORK-5)
-
-### Overview
-
-For sensitive applications like banking apps, [OWASP MASVS](https://github.com/OWASP/owasp-masvs/blob/master/Document/0x03-Using_the_MASVS.md "The Mobile Application Security Verification Standard") introduces "Defense in Depth" verification levels. The critical operations (e.g., user enrolment and account recovery) of such applications are some of the most attractive targets to attackers. This requires implementation of advanced security controls, such as additional channels to confirm user actions without relying on SMS or email.
-
-Note that using SMS as an additional factor for critical operations is not recommended. Attacks like SIM swap scams were used in many cases to [attack Instagram accounts, cryptocurrency exchanges](https://motherboard.vice.com/en_us/article/vbqax3/hackers-sim-swapping-steal-phone-numbers-instagram-bitcoin "The SIM Hijackers") and of course [financial institutions](https://www.fintechnews.org/sim-swapping-how-the-mobile-security-feature-can-lead-to-a-hacked-bank-account/ "SIM swapping") to bypass SMS verification. SIM swapping is a legitimate service offered by many carriers to switch your mobile number to a new SIM card. If an attacker manages to either convince the carrier or recruits retail workers at mobile shops to do a SIM swap, the mobile number will be transferred to a SIM the attacker owns.  As a result of this, the attacker will be able to receive all SMS and voice calls without the victim knowing it.
-
-There are different ways to [protect your SIM card](https://www.wired.com/story/sim-swap-attack-defend-phone/ "How to protect yourself against a SIM swap attack"), but this level of security maturity and awareness cannot be expected from a normal user and is also not enforced by the carriers.  
-
-Also the usage of emails shouldn't be considered as a secure communication channel. Encrypting emails is usually not offered by service providers and even when available not used by the average user, therefore the confidentiality of data when using emails cannot be guaranteed. Spoofing, (spear|dynamite) phishing and spamming are additional ways to trick users by abusing emails. Therefore other secure communication channels should be considered besides SMS and email.
-
-### Static Analysis
-
-Review the code and identify the parts that refer to critical operations. Make sure that additional channels are used for such operations. The following are examples of additional verification channels:
-
-- Token (e.g., RSA token, YubiKey),
-- Push notification (e.g., Google Prompt),
-- Data from another website you have visited or scanned (e.g. QR code) or
-- Data from a physical letter or physical entry point (e.g., data you receive only after signing a document at a bank).
-
-Make sure that critical operations enforce the use of at least one additional channel to confirm user actions. These channels must not be bypassed when executing critical operations. If you're going to implement an additional factor to verify the user's identity, consider also one-time passcodes (OTP) via [Google Authenticator](https://github.com/google/google-authenticator-android "Google Authenticator for Android").
-
-### Dynamic Analysis
-
-Identify all of the tested application's critical operations (e.g., user enrollment, account recovery, and financial transactions). Ensure that each critical operation requires at least one additional verification channel. Make sure that directly calling the function doesn't bypass the usage of these channels.
-
-## References
-
-### OWASP MASVS
-
-- MSTG-NETWORK-1: "Data is encrypted on the network using TLS. The secure channel is used consistently throughout the app."
-- MSTG-NETWORK-2: "The TLS settings are in line with current best practices, or as close as possible if the mobile operating system does not support the recommended standards."
-- MSTG-NETWORK-5: "The app doesn't rely on a single insecure communication channel (email or SMS) for critical operations, such as enrollments and account recovery."
-
-### Android
-
-- Android supported Cipher suites - <https://developer.android.com/reference/javax/net/ssl/SSLSocket#Cipher%20suites>
-- Android documentation: Android 10 Changes - <https://developer.android.com/about/versions/10/behavior-changes-all>
-
-### iOS
-
-- iOS supported Cipher suites - <https://developer.apple.com/documentation/security/1550981-ssl_cipher_suite_values?language=objc>
-
-### IANA Transport Layer Security (TLS) Parameters
-
-- TLS Cipher Suites - <https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4>
-
-### OWASP TLS Cipher String Cheat Sheet
-
-- Recommendations for a cipher string - <https://github.com/OWASP/CheatSheetSeries/blob/master/cheatsheets/TLS_Cipher_String_Cheat_Sheet.md>
-
-### SIM Swapping attacks
-
-- The SIM Hijackers - <https://motherboard.vice.com/en_us/article/vbqax3/hackers-sim-swapping-steal-phone-numbers-instagram-bitcoin>
-- SIM swapping: how the mobile security feature can lead to a hacked bank account - <https://www.fintechnews.org/sim-swapping-how-the-mobile-security-feature-can-lead-to-a-hacked-bank-account/>
-
-### NIST
-
-- FIPS PUB 186 - Digital Signature Standard (DSS)
-
-### SIM Swap Fraud
-
-- <https://motherboard.vice.com/en_us/article/vbqax3/hackers-sim-swapping-steal-phone-numbers-instagram-bitcoin>
-- How to protect yourself against a SIM swap attack - <https://www.wired.com/story/sim-swap-attack-defend-phone/>
-
-<br/>
-<br/>
-
-### IETF
-
-- RFC 6176 - <https://tools.ietf.org/html/rfc6176>
-- RFC 6101 - <https://tools.ietf.org/html/rfc6101>
-- RFC 2246 - <https://www.ietf.org/rfc/rfc2246>
-- RFC 4346 - <https://tools.ietf.org/html/rfc4346>
-- RFC 5246 - <https://tools.ietf.org/html/rfc5246>
-- RFC 8446 - <https://tools.ietf.org/html/rfc8446>
-- RFC 6979 - <https://tools.ietf.org/html/rfc6979>
-- RFC 8017 - <https://tools.ietf.org/html/rfc8017>
-- RFC 2631 - <https://tools.ietf.org/html/rfc2631>
-- RFC 7919 - <https://tools.ietf.org/html/rfc7919>
-- RFC 4492 - <https://tools.ietf.org/html/rfc4492>
-- RFC 4279 - <https://tools.ietf.org/html/rfc4279>
-- RFC 2631 - <https://tools.ietf.org/html/rfc2631>
-- RFC 8422 - <https://tools.ietf.org/html/rfc8422>
-- RFC 5489 - <https://tools.ietf.org/html/rfc5489>
-- RFC 4772 - <https://tools.ietf.org/html/rfc4772>
-- RFC 1829 - <https://tools.ietf.org/html/rfc1829>
-- RFC 2420 - <https://tools.ietf.org/html/rfc2420>
-- RFC 3268 - <https://tools.ietf.org/html/rfc3268>
-- RFC 5288 - <https://tools.ietf.org/html/rfc5288>
-- RFC 7465 - <https://tools.ietf.org/html/rfc7465>
-- RFC 7905 - <https://tools.ietf.org/html/rfc7905>
-- RFC 7539 - <https://tools.ietf.org/html/rfc7539>
-- RFC 6151 - <https://tools.ietf.org/html/rfc6151>
-- RFC 6234 - <https://tools.ietf.org/html/rfc6234>
-- RFC 8447 - <https://tools.ietf.org/html/rfc8447#section-8>
